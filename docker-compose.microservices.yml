@@ -1,0 +1,180 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - auth-service
+      - product-service
+      - cart-service
+      - order-service
+      - shop-service
+      - notification-service
+    networks:
+      - easyshop-network
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/auth-db
+      - JWT_SECRET=your-secret-key
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - easyshop-network
+
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/product-db
+      - JWT_SECRET=your-secret-key
+      - CLOUDINARY_CLOUD_NAME=your-cloud-name
+      - CLOUDINARY_API_KEY=your-api-key
+      - CLOUDINARY_API_SECRET=your-api-secret
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - easyshop-network
+
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/cart-db
+      - JWT_SECRET=your-secret-key
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - product-service
+    networks:
+      - easyshop-network
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/order-db
+      - JWT_SECRET=your-secret-key
+      - STRIPE_SECRET_KEY=your-stripe-secret-key
+      - STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+      - CART_SERVICE_URL=http://cart-service:3003
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - cart-service
+      - product-service
+    networks:
+      - easyshop-network
+
+  shop-service:
+    build:
+      context: ./services/shop-service
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/shop-db
+      - JWT_SECRET=your-secret-key
+      - CLOUDINARY_CLOUD_NAME=your-cloud-name
+      - CLOUDINARY_API_KEY=your-api-key
+      - CLOUDINARY_API_SECRET=your-api-secret
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - ORDER_SERVICE_URL=http://order-service:3004
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - product-service
+      - order-service
+    networks:
+      - easyshop-network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/notification-db
+      - JWT_SECRET=your-secret-key
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - SENDGRID_API_KEY=your-sendgrid-api-key
+      - SENDGRID_FROM_EMAIL=no-reply@easyshop.com
+      - SENDGRID_FROM_NAME=EasyShop
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=false
+      - SMTP_USER=your-email@gmail.com
+      - SMTP_PASS=your-email-password
+      - TWILIO_ACCOUNT_SID=your-twilio-account-sid
+      - TWILIO_AUTH_TOKEN=your-twilio-auth-token
+      - TWILIO_FROM_NUMBER=your-twilio-phone-number
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - easyshop-network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - easyshop-network
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - easyshop-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - easyshop-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  easyshop-network:
+    driver: bridge

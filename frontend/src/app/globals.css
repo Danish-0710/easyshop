@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --gradient: 323 100% 50%;
+    --background: 220 14% 96%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 323 100% 50%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 13% 88%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 79% 49%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 346.8 77.2% 49.8%;
+    --radius: 0.5rem;
+    --scroll-bg: 0 0% 94%;
+    --scroll-thumb: 0 0% 83%;
+  }
+
+  .dark {
+    --gradient: 323 100% 50%;
+    --background: 198 100% 5%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 193 82% 4%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 323 100% 50%;
+    --primary-foreground: 220.9 39.3% 11%;
+    --secondary: 196 75% 8%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 199 100% 6%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 79% 49%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 216 12.2% 83.9%;
+    --scroll-bg: 215 27.9% 16.9%;
+    --scroll-thumb: 217.9 10.6% 64.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .px-default {
+    @apply px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20;
+  }
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--scroll-bg));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--scroll-thumb));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Embla Carousel Styles */
+.embla {
+  --slide-spacing: 1rem;
+  --slide-size: 100%;
+  --slide-height: 19rem;
+  padding: 1.6rem;
+}
+
+.embla__viewport {
+  overflow: hidden;
+}
+
+.embla__container {
+  backface-visibility: hidden;
+  display: flex;
+  touch-action: pan-y;
+  margin-left: calc(var(--slide-spacing) * -1);
+}
+
+.embla__slide {
+  flex: 0 0 var(--slide-size);
+  min-width: 0;
+  padding-left: var(--slide-spacing);
+  position: relative;
+}
+
+.embla__slide__img {
+  display: block;
+  height: var(--slide-height);
+  width: 100%;
+  object-fit: cover;
+}
+
+.embla__slide__number {
+  width: 4.6rem;
+  height: 4.6rem;
+  z-index: 1;
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  border-radius: 50%;
+  background-color: rgba(var(--background-site-rgb-value), 0.85);
+  line-height: 4.6rem;
+  font-weight: 900;
+  text-align: center;
+  pointer-events: none;
+}
+
+.embla__slide__number > span {
+  color: var(--brand-primary);
+  background-image: linear-gradient(
+    45deg,
+    var(--brand-primary),
+    var(--brand-secondary)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 1.6rem;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.embla-thumbs {
+  --thumbs-slide-spacing: 0.8rem;
+  --thumbs-slide-height: 9rem;
+  margin-top: var(--thumbs-slide-spacing);
+}
+
+.embla-thumbs__viewport {
+  overflow: hidden;
+}
+
+.embla-thumbs__container {
+  display: flex;
+  flex-direction: row;
+  margin-left: calc(var(--thumbs-slide-spacing) * -1);
+}
+
+.embla-thumbs__slide {
+  flex: 0 0 28%;
+  min-width: 0;
+  padding-left: var(--thumbs-slide-spacing);
+  position: relative;
+}
+
+@media (min-width: 576px) {
+  .embla-thumbs__slide {
+    flex: 0 0 18%;
+  }
+}
+
+.embla-thumbs__slide__button {
+  -webkit-appearance: none;
+  background-color: transparent;
+  touch-action: manipulation;
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  opacity: 0.2;
+  transition: opacity 0.2s;
+}
+
+.embla-thumbs__slide--selected .embla-thumbs__slide__button {
+  opacity: 1;
+}
+
+.embla-thumbs__slide__img {
+  display: block;
+  height: var(--thumbs-slide-height);
+  width: 100%;
+  object-fit: cover;
+}
+
+.embla-thumbs__slide__number {
+  width: 3rem;
+  height: 3rem;
+  z-index: 1;
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  border-radius: 50%;
+  background-color: rgba(var(--background-site-rgb-value), 0.85);
+  line-height: 3rem;
+  font-weight: 900;
+  text-align: center;
+  pointer-events: none;
+  color: hsl(var(--primary));
+}
