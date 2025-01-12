@@ -30,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={roboto.className}>
+    <html lang="en" suppressHydrationWarning={true}>
+      <body className={roboto.className} suppressHydrationWarning={true}>
         <StoreProvider>
           <ThemeProvider
             attribute="class"

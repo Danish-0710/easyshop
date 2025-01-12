@@ -62,8 +62,12 @@ const productSchema = new Schema<IProduct>(
       type: String,
       required: true,
     },
-    subcategory: String,
-    brand: String,
+    subcategory: {
+      type: String,
+    },
+    brand: {
+      type: String,
+    },
     stock: {
       type: Number,
       required: true,
@@ -72,19 +76,20 @@ const productSchema = new Schema<IProduct>(
     },
     rating: {
       type: Number,
+      required: true,
       default: 0,
       min: 0,
       max: 5,
     },
     numReviews: {
       type: Number,
+      required: true,
       default: 0,
     },
     reviews: [{
       userId: {
-        type: Schema.Types.ObjectId,
+        type: String,
         required: true,
-        ref: 'User',
       },
       rating: {
         type: Number,
@@ -92,20 +97,28 @@ const productSchema = new Schema<IProduct>(
         min: 1,
         max: 5,
       },
-      comment: String,
+      comment: {
+        type: String,
+        required: true,
+      },
       createdAt: {
         type: Date,
         default: Date.now,
       },
     }],
     variants: [{
-      name: String,
-      options: [String],
+      name: {
+        type: String,
+        required: true,
+      },
+      options: [{
+        type: String,
+        required: true,
+      }],
     }],
     shopId: {
-      type: Schema.Types.ObjectId,
+      type: String,
       required: true,
-      ref: 'Shop',
     },
     isPublished: {
       type: Boolean,
@@ -117,24 +130,12 @@ const productSchema = new Schema<IProduct>(
   }
 );
 
-// Generate slug before saving
+// Create slug from title before saving
 productSchema.pre('save', function(next) {
-  if (this.isModified('title')) {
+  if (this.title) {
     this.slug = slugify(this.title, { lower: true });
   }
   next();
-});
-
-// Add indexes for better query performance
-productSchema.index({ slug: 1 });
-productSchema.index({ category: 1 });
-productSchema.index({ shopId: 1 });
-productSchema.index({ price: 1 });
-productSchema.index({ 
-  title: 'text', 
-  description: 'text',
-  category: 'text',
-  brand: 'text' 
 });
 
 export const Product = mongoose.model<IProduct>('Product', productSchema);

@@ -24,8 +24,6 @@ app.use('/api/shops', proxy(config.services.shop.url));
 // Error handling
 app.use(errorHandler);
 
-const PORT = 4000;
-
-app.listen(PORT, () => {
-  logger.info(`API Gateway running on port ${PORT}`);
+app.listen(config.port, () => {
+  logger.info(`API Gateway running on port ${config.port}`);
 });
