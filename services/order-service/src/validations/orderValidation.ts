@@ -1,24 +1,27 @@
 import { z } from 'zod';
 
+const addressSchema = z.object({
+  title: z.string().min(3),
+  phone: z.string().min(11),
+  country: z.string().min(3),
+  city: z.string().min(3),
+  state: z.string().min(3),
+  zip: z.string().min(3),
+  streetAddress: z.string().min(3),
+});
+
 export const orderValidation = {
   createOrder: z.object({
     body: z.object({
-      shippingAddress: z.object({
-        fullName: z.string().min(2, 'Full name is required'),
-        addressLine1: z.string().min(1, 'Address line 1 is required'),
-        addressLine2: z.string().optional(),
-        city: z.string().min(1, 'City is required'),
-        state: z.string().min(1, 'State is required'),
-        postalCode: z.string().min(1, 'Postal code is required'),
-        country: z.string().min(1, 'Country is required'),
-        phone: z.string().min(1, 'Phone number is required'),
-      }),
+      billingAddress: addressSchema,
+      shippingAddress: addressSchema,
+      paymentMethod: z.enum(['cash on delivery', 'card', 'paypal']),
     }),
   }),
 
   updateOrderStatus: z.object({
     body: z.object({
-      orderStatus: z.enum([
+      status: z.enum([
         'pending',
         'processing',
         'shipped',

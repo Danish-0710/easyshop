@@ -1,22 +1,20 @@
-import twilio from 'twilio';
-import handlebars from 'handlebars';
 import { config } from '../config';
-import { INotification } from '../models/Notification';
 import { logger } from './logger';
 
-class SMSService {
-  private client: twilio.Twilio;
+export class SMSService {
+  private client: any;
 
   constructor() {
-    this.client = twilio(
-      config.sms.twilio.accountSid,
-      config.sms.twilio.authToken
-    );
+    if (process.env.NODE_ENV === 'production') {
+      const twilio = require('twilio');
+      this.client = new twilio(config.sms.twilio.accountSid, config.sms.twilio.authToken);
+    }
   }
 
-  async send(notification: INotification) {
+  async send(notification: any): Promise<boolean> {
     try {
       // Compile template with Handlebars
+      const handlebars = require('handlebars');
       const template = handlebars.compile(notification.message);
       const message = template(notification.metadata);
 
@@ -24,16 +22,21 @@ class SMSService {
         throw new Error('Phone number is required for SMS notification');
       }
 
-      await this.client.messages.create({
-        body: message,
-        from: config.sms.twilio.fromNumber,
-        to: notification.metadata.phone,
-      });
-
+      if (process.env.NODE_ENV === 'production') {
+        await this.client.messages.create({
+          body: message,
+          from: config.sms.twilio.fromNumber,
+          to: notification.metadata.phone,
+        });
+      } else {
+        // Development mode - just log the message
+        logger.info(`[DEV MODE] SMS would be sent to ${notification.metadata.phone}: ${message}`);
+      }
       logger.info(`SMS sent successfully to notification ID: ${notification._id}`);
+      return true;
     } catch (error) {
       logger.error('Failed to send SMS:', error);
-      throw error;
+      return false;
     }
   }
 }

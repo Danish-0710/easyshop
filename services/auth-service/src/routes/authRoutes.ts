@@ -21,6 +21,10 @@ router.post(
 
 router.post('/logout', authController.logout);
 
+// Google OAuth routes
+router.get('/google', authController.getGoogleAuthURL);
+router.get('/google/callback', authController.handleGoogleCallback);
+
 // Protected routes
 router.use(authMiddleware);
 

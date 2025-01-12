@@ -36,7 +36,7 @@ const BooksSlider = ({ books }: BookSliderProps) => {
                 width={400}
                 height={600}
                 alt={book.title}
-                src={book.image[0]}
+                src={book.images?.[0] || '/placeholder.jpg'}
                 className="rounded-lg"
               />
             </Link>

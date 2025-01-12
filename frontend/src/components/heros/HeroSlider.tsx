@@ -39,6 +39,7 @@ const HeroSlider = ({
       }
     >
       <Image
+        priority
         height={600}
         width={1000}
         src={heroImages[0].bgImg}
@@ -87,6 +88,7 @@ const HeroSlider = ({
               className={`bg-center bg-cover aspect-[1015/402] max-h-[650px] p-0 w-full`}
             >
               <Image
+                priority
                 height={600}
                 width={1000}
                 src={hero.bgImg}

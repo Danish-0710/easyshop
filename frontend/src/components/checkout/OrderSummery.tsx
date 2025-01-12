@@ -1,6 +1,6 @@
 "use client";
 
-import { removeFromCart } from "@/lib/features/cart/cartSlice";
+import { removeFromCart, clearCart } from "@/lib/features/cart/cartSlice";
 import { useAppSelector } from "@/lib/hooks";
 import { totalPrice } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,6 +12,11 @@ import { useDispatch } from "react-redux";
 import Skeleton from "../loader/Skeleton";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle } from "../ui/card";
+import { useToast } from "../ui/use-toast";
+import fetchData from "@/lib/fetchDataFromApi";
+import { useRouter } from "next/navigation";
+import { clearAddresses } from "@/lib/features/address/addressSlice";
+import { LuLoader } from "react-icons/lu";
 
 const paymentMethods = [
   {
@@ -22,14 +27,64 @@ const paymentMethods = [
 const OrderSummery = () => {
   const [selectedMethod, setSelectedMethod] = useState("");
   const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { cartItems } = useAppSelector((state) => state.cartSlice);
+  const { billingAddress, shippingAddress } = useAppSelector((state) => state.addressSlice);
   const dispatch = useDispatch();
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleSelectMethod = (title: string) => {
     setSelectedMethod(title);
   };
 
-  const placeOrder = async () => {};
+  const placeOrder = async () => {
+    if (!billingAddress || !shippingAddress) {
+      toast({
+        title: "Error",
+        description: "Please fill both billing and shipping addresses",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const orderData = {
+        items: cartItems.map(item => ({
+          productId: item._id,
+          quantity: item.amount,
+          price: item.price
+        })),
+        billingAddress,
+        shippingAddress,
+        paymentMethod: selectedMethod,
+        totalAmount: totalPrice(cartItems) + 20, // Including shipping and tax
+        status: "pending"
+      };
+
+      const response = await fetchData.post("/orders", orderData);
+      
+      if (response.data) {
+        dispatch(clearCart());
+        dispatch(clearAddresses());
+        toast({
+          title: "Success",
+          description: "Order placed successfully!",
+          variant: "success",
+        });
+        router.push("/orders");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.response?.data || "Failed to place order",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -41,7 +96,7 @@ const OrderSummery = () => {
         <h2 className="text-2xl font-bold mb-5">Order Summary</h2>
         <div className="pb-4">
           {cartItems.length <= 0 && (
-            <div className="text-center py-6">No prodduct select!</div>
+            <div className="text-center py-6">No product selected!</div>
           )}
           {cartItems.map((item) => (
             <motion.div
@@ -101,8 +156,8 @@ const OrderSummery = () => {
                   onClick={() => handleSelectMethod(method.title)}
                 >
                   <CardHeader>
-                    <CardTitle className="text-base">
-                      Cash on Delivery
+                    <CardTitle className="text-base capitalize">
+                      {method.title}
                     </CardTitle>
                   </CardHeader>
                 </Card>
@@ -125,16 +180,21 @@ const OrderSummery = () => {
           </div>
           <div className="flex justify-between font-semibold">
             <p>Total</p>
-            <p>${totalPrice(cartItems) + 10 + 10}</p>
+            <p>${totalPrice(cartItems) + 20}</p>
           </div>
         </div>
         <Button
           type="button"
-          disabled={cartItems.length <= 0 || selectedMethod === ""}
-          className="w-full mt-5 capitalize"
+          disabled={cartItems.length <= 0 || selectedMethod === "" || isLoading}
+          className="w-full mt-5 capitalize flex items-center gap-2"
           onClick={placeOrder}
         >
-          Place Order
+          <span>Place Order</span>
+          {isLoading && (
+            <span className="text-base animate-spin">
+              <LuLoader />
+            </span>
+          )}
         </Button>
       </div>
     </AnimatePresence>

@@ -25,8 +25,8 @@ mongoose
   });
 
 // Routes
-app.use('/api/products', productRoutes);
-app.use('/api/categories', categoryRoutes);
+app.use('/products', productRoutes);
+app.use('/categories', categoryRoutes);
 
 // Error handling
 app.use(errorHandler);

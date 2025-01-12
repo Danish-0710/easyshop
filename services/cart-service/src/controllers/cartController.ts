@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Cart } from '../models/Cart';
 import { config } from '../config';
 import { BadRequestError, NotFoundError } from '../utils/errors';
+import { logger } from '../utils/logger';
 
 export const cartController = {
   async getCart(req: Request, res: Response, next: NextFunction) {
@@ -26,6 +27,7 @@ export const cartController = {
         data: { cart },
       });
     } catch (error) {
+      logger.error('Error getting cart:', error);
       next(error);
     }
   },
@@ -54,23 +56,26 @@ export const cartController = {
       }
 
       // Check if item already exists in cart
-      const existingItemIndex = cart.items.findIndex(
+      const existingItem = cart.items.find(
         (item) => item.productId.toString() === productId
       );
 
-      if (existingItemIndex > -1) {
-        // Update quantity if item exists
-        cart.items[existingItemIndex].quantity += quantity;
+      if (existingItem) {
+        existingItem.quantity += quantity;
       } else {
-        // Add new item
         cart.items.push({
           productId,
           quantity,
           price: product.price,
           name: product.name,
-          image: product.images[0],
         });
       }
+
+      // Recalculate total
+      cart.total = cart.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
 
       await cart.save();
 
@@ -79,6 +84,7 @@ export const cartController = {
         data: { cart },
       });
     } catch (error) {
+      logger.error('Error adding item to cart:', error);
       next(error);
     }
   },
@@ -92,21 +98,28 @@ export const cartController = {
         throw new NotFoundError('Cart not found');
       }
 
-      const itemIndex = cart.items.findIndex(
+      const item = cart.items.find(
         (item) => item.productId.toString() === productId
       );
 
-      if (itemIndex === -1) {
+      if (!item) {
         throw new NotFoundError('Item not found in cart');
       }
 
-      if (quantity === 0) {
-        // Remove item if quantity is 0
-        cart.items.splice(itemIndex, 1);
+      if (quantity <= 0) {
+        // Remove item if quantity is 0 or negative
+        cart.items = cart.items.filter(
+          (item) => item.productId.toString() !== productId
+        );
       } else {
-        // Update quantity
-        cart.items[itemIndex].quantity = quantity;
+        item.quantity = quantity;
       }
+
+      // Recalculate total
+      cart.total = cart.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
 
       await cart.save();
 
@@ -115,6 +128,7 @@ export const cartController = {
         data: { cart },
       });
     } catch (error) {
+      logger.error('Error updating item quantity:', error);
       next(error);
     }
   },
@@ -128,15 +142,16 @@ export const cartController = {
         throw new NotFoundError('Cart not found');
       }
 
-      const itemIndex = cart.items.findIndex(
-        (item) => item.productId.toString() === productId
+      cart.items = cart.items.filter(
+        (item) => item.productId.toString() !== productId
       );
 
-      if (itemIndex === -1) {
-        throw new NotFoundError('Item not found in cart');
-      }
+      // Recalculate total
+      cart.total = cart.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
 
-      cart.items.splice(itemIndex, 1);
       await cart.save();
 
       res.json({
@@ -144,6 +159,7 @@ export const cartController = {
         data: { cart },
       });
     } catch (error) {
+      logger.error('Error removing item from cart:', error);
       next(error);
     }
   },
@@ -156,6 +172,7 @@ export const cartController = {
       }
 
       cart.items = [];
+      cart.total = 0;
       await cart.save();
 
       res.json({
@@ -163,6 +180,7 @@ export const cartController = {
         data: { cart },
       });
     } catch (error) {
+      logger.error('Error clearing cart:', error);
       next(error);
     }
   },

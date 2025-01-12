@@ -79,8 +79,40 @@ export const productController = {
 
   async getProductsByCategory(req: Request, res: Response, next: NextFunction) {
     try {
-      const { query, pagination } = buildQuery(req.query);
-      query.category = req.params.category;
+      const { query, pagination } = buildQuery({
+        ...req.query,
+        category: req.params.category,
+      });
+
+      const products = await Product.find(query)
+        .sort(pagination.sort)
+        .skip(pagination.skip)
+        .limit(pagination.limit);
+
+      const total = await Product.countDocuments(query);
+
+      res.json({
+        status: 'success',
+        data: {
+          products,
+          pagination: {
+            ...pagination,
+            total,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getProductsBySubcategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { query, pagination } = buildQuery({
+        ...req.query,
+        category: req.params.category,
+        subcategory: req.params.subcategory,
+      });
 
       const products = await Product.find(query)
         .sort(pagination.sort)

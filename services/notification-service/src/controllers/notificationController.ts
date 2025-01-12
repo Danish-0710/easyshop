@@ -11,7 +11,8 @@ import { logger } from '../utils/logger';
 export const notificationController = {
   async createNotification(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId, type, channel, templateName, variables } = req.body;
+      const { type, channel, templateName, variables } = req.body;
+      const userId = req.user?.id;
 
       // Get notification template
       const template = await NotificationTemplate.findOne({
@@ -24,7 +25,7 @@ export const notificationController = {
       }
 
       // Get user preferences
-      const preferences = await NotificationPreference.findOne({ userId: req.user?.id });
+      const preferences = await NotificationPreference.findOne({ userId });
       if (!preferences) {
         throw new NotFoundError('User preferences not found');
       }
@@ -37,7 +38,7 @@ export const notificationController = {
 
       // Create notification
       const notification = await Notification.create({
-        userId: req.user?.id,
+        userId,
         type,
         channel,
         title: template.subject,
@@ -49,7 +50,7 @@ export const notificationController = {
       try {
         switch (channel) {
           case 'email':
-            await emailService.send(notification);
+            await emailService.sendEmail(notification);
             break;
           case 'sms':
             await smsService.send(notification);

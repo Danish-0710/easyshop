@@ -6,7 +6,7 @@ import { discountPercent } from "@/lib/utils";
 const CardTwo = ({
   _id,
   title,
-  image,
+  images,
   price,
   unit_of_measure,
   oldPrice,
@@ -26,7 +26,7 @@ const CardTwo = ({
       )}
       <div className="img rounded-sm overflow-hidden">
         <Image
-          src={image[0]}
+          src={images?.[0] || '/placeholder.jpg'}
           width={500}
           height={500}
           alt={title}
@@ -57,7 +57,7 @@ const CardTwo = ({
             cartItem={{
               _id,
               title,
-              image: image[0],
+              image: images[0],
               price,
               unit_of_measure,
               shop_category,

@@ -27,6 +27,7 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
       minlength: 8,
+      select: false, // Don't include password in queries by default
     },
     name: {
       type: String,
@@ -45,6 +46,7 @@ const userSchema = new Schema<IUser>(
     shopId: {
       type: Schema.Types.ObjectId,
       ref: 'Shop',
+      required: false,
     },
   },
   {
@@ -59,11 +61,11 @@ userSchema.pre('save', async function (next) {
   }
 
   try {
-    const salt = await bcrypt.genSalt(config.bcryptSaltRounds);
+    const salt = await bcrypt.genSalt(config.auth.bcrypt.saltRounds);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (error) {
+    next(error as Error);
   }
 });
 
@@ -71,7 +73,11 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error('Error comparing passwords');
+  }
 };
 
 export const User = mongoose.model<IUser>('User', userSchema);

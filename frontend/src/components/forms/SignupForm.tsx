@@ -37,6 +37,7 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const dispatch = useDispatch();
 
@@ -76,6 +77,23 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
       setIsLoading(false);
     }
   }
+
+  const handleGoogleSignup = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const res = await fetchData.get("/auth/google");
+      // Redirect to Google OAuth URL
+      window.location.href = res.data.url;
+    } catch (error: any) {
+      toast({
+        title: "Google signup failed",
+        description: error?.response?.data || "Google signup failed",
+        variant: "destructive",
+      });
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <Form {...form}>
       <form
@@ -143,7 +161,7 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
           disabled={isLoading}
           className="w-full mt-3 h-12 gap-3"
         >
-          <span>Login</span>
+          <span>Sign up</span>
           {isLoading && (
             <span className="text-base animate-spin">
               <LuLoader />
@@ -158,12 +176,19 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
         </div>
         <Button
           type="button"
+          disabled={isGoogleLoading}
+          onClick={handleGoogleSignup}
           className="w-full h-12 flex gap-4 bg-gray-900 border-input hover:text-white hover:bg-gray-800"
         >
           <span className="text-3xl">
             <FcGoogle />
           </span>
-          <span>Signup with google</span>
+          <span>Sign up with Google</span>
+          {isGoogleLoading && (
+            <span className="text-base animate-spin">
+              <LuLoader />
+            </span>
+          )}
         </Button>
       </form>
     </Form>

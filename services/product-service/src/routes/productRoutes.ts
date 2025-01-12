@@ -5,16 +5,23 @@ import { productValidation } from '../validations/productValidation';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { roleMiddleware } from '../middleware/roleMiddleware';
 import { upload } from '../utils/upload';
+import { cacheMiddleware, clearCache } from '../middleware/cache';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
 // Public routes
-router.get('/', productController.getAllProducts);
-router.get('/search', productController.searchProducts);
-router.get('/category/:category', productController.getProductsByCategory);
-router.get('/shop/:shopId', productController.getProductsByShop);
-router.get('/:slug', productController.getProductBySlug);
-router.get('/related/:productId', productController.getRelatedProducts);
+router.get('/', cacheMiddleware('products', 3600), productController.getAllProducts);
+router.get('/search', cacheMiddleware('products', 3600), productController.searchProducts);
+
+// Category routes
+router.get('/:category', cacheMiddleware('products', 3600), productController.getProductsByCategory);
+router.get('/:category/:subcategory', cacheMiddleware('products', 3600), productController.getProductsBySubcategory);
+
+// Other routes
+router.get('/shop/:shopId', cacheMiddleware('products', 3600), productController.getProductsByShop);
+router.get('/product/:slug', cacheMiddleware('product', 3600), productController.getProductBySlug);
+router.get('/related/:productId', cacheMiddleware('products', 3600), productController.getRelatedProducts);
 
 // Protected routes
 router.use(authMiddleware);
@@ -25,7 +32,15 @@ router.post(
   roleMiddleware(['vendor', 'admin']),
   upload.array('images', 5),
   validateRequest(productValidation.createProduct),
-  productController.createProduct
+  async (req, res) => {
+    try {
+      await productController.createProduct(req, res);
+      await clearCache('products:*');
+    } catch (error) {
+      logger.error('Error creating product:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 );
 
 router.patch(
@@ -33,13 +48,31 @@ router.patch(
   roleMiddleware(['vendor', 'admin']),
   upload.array('images', 5),
   validateRequest(productValidation.updateProduct),
-  productController.updateProduct
+  async (req, res) => {
+    try {
+      await productController.updateProduct(req, res);
+      await clearCache('products:*');
+      await clearCache(`product:*${req.params.productId}*`);
+    } catch (error) {
+      logger.error('Error updating product:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 );
 
 router.delete(
   '/:productId',
   roleMiddleware(['vendor', 'admin']),
-  productController.deleteProduct
+  async (req, res) => {
+    try {
+      await productController.deleteProduct(req, res);
+      await clearCache('products:*');
+      await clearCache(`product:*${req.params.productId}*`);
+    } catch (error) {
+      logger.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 );
 
 // Review routes
@@ -49,7 +82,7 @@ router.post(
   productController.createProductReview
 );
 
-router.get('/:productId/reviews', productController.getProductReviews);
+router.get('/:productId/reviews', cacheMiddleware('reviews', 3600), productController.getProductReviews);
 
 router.delete(
   '/:productId/reviews/:reviewId',

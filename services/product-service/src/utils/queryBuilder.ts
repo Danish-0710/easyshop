@@ -48,20 +48,40 @@ export const buildQuery = (params: QueryParams) => {
     }
   });
 
+  // Search query
+  if (params.q) {
+    query.$or = [
+      { name: { $regex: params.q, $options: 'i' } },
+      { description: { $regex: params.q, $options: 'i' } },
+      { category: { $regex: params.q, $options: 'i' } },
+      { subcategory: { $regex: params.q, $options: 'i' } },
+    ];
+  }
+
   // Price range
   if (params.minPrice || params.maxPrice) {
     query.price = {};
     if (params.minPrice) {
-      query.price.$gte = parseFloat(params.minPrice as string);
+      query.price.$gte = parseFloat(params.minPrice);
     }
     if (params.maxPrice) {
-      query.price.$lte = parseFloat(params.maxPrice as string);
+      query.price.$lte = parseFloat(params.maxPrice);
     }
+  }
+
+  // Color filter
+  if (params.color) {
+    query.colors = params.color;
+  }
+
+  // Size filter
+  if (params.size) {
+    query.sizes = params.size;
   }
 
   // Rating filter
   if (params.rating) {
-    query.rating = { $gte: parseFloat(params.rating as string) };
+    query.rating = { $gte: parseFloat(params.rating) };
   }
 
   return { query, pagination };

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export const axiosInstance = axios.create({
   baseURL,
@@ -13,7 +13,7 @@ const fetchData = {
   get: async (url: string, params = {}) => {
     try {
       const response = await axiosInstance.get(url, { params });
-      return response;
+      return response.data;
     } catch (error) {
       console.error("API Error:", error);
       throw error;
@@ -22,7 +22,7 @@ const fetchData = {
   post: async (url: string, data = {}) => {
     try {
       const response = await axiosInstance.post(url, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error("API Error:", error);
       throw error;

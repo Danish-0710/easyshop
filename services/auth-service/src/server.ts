@@ -10,12 +10,15 @@ import { logger } from './utils/logger';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: config.cors.origin,
+  credentials: config.cors.credentials
+}));
 app.use(express.json());
 
 // Connect to MongoDB
 mongoose
-  .connect(config.mongoUri)
+  .connect(config.mongodb.uri)
   .then(() => {
     logger.info('Connected to MongoDB');
   })
@@ -25,14 +28,15 @@ mongoose
   });
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
 
 // Error handling
 app.use(errorHandler);
 
-const PORT = config.port || 3001;
+const PORT = config.server.port;
+const HOST = config.server.host;
 
-app.listen(PORT, () => {
-  logger.info(`Auth Service running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  logger.info(`Auth Service running on http://${HOST}:${PORT}`);
 });

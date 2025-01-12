@@ -1,6 +1,137 @@
 version: '3.8'
 
 services:
+  mongodb:
+    image: mongo:latest
+    container_name: easyshop-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: test@123
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - easyshop-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  auth-service:
+    build: 
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: easyshop-auth-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGO_HOST=mongodb
+      - MONGO_USERNAME=root
+      - MONGO_PASSWORD=test@123
+      - JWT_SECRET=GPTteVlyaQyrxlh4DFoujz6u81Y2bDRmNyi6o
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: easyshop-product-service
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - MONGO_HOST=mongodb
+      - MONGO_USERNAME=root
+      - MONGO_PASSWORD=test@123
+      - JWT_SECRET=GPTteVlyaQyrxlh4DFoujz6u81Y2bDRmNyi6o
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    container_name: easyshop-cart-service
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - MONGO_HOST=mongodb
+      - MONGO_USERNAME=root
+      - MONGO_PASSWORD=test@123
+      - JWT_SECRET=GPTteVlyaQyrxlh4DFoujz6u81Y2bDRmNyi6o
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - easyshop-network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: easyshop-notification-service
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - MONGO_HOST=mongodb
+      - MONGO_USERNAME=root
+      - MONGO_PASSWORD=test@123
+      - JWT_SECRET=GPTteVlyaQyrxlh4DFoujz6u81Y2bDRmNyi6o
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+
+  shop-service:
+    build:
+      context: ./services/shop-service
+      dockerfile: Dockerfile
+    container_name: easyshop-shop-service
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - MONGO_HOST=mongodb
+      - MONGO_USERNAME=root
+      - MONGO_PASSWORD=test@123
+      - JWT_SECRET=GPTteVlyaQyrxlh4DFoujz6u81Y2bDRmNyi6o
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - easyshop-network
+
   frontend:
     image: iemafzal/easyshop:latest
     container_name: easyshop-frontend
@@ -9,7 +140,15 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://api:8000
+      - NEXT_PUBLIC_API_URL=http://auth-service:3001
+      - NEXT_PUBLIC_PRODUCT_SERVICE_URL=http://product-service:3002
+      - NEXT_PUBLIC_CART_SERVICE_URL=http://cart-service:3003
+      - NEXT_PUBLIC_SHOP_SERVICE_URL=http://shop-service:3005
+    depends_on:
+      - auth-service
+      - product-service
+      - cart-service
+      - shop-service
     networks:
       - easyshop-network
     healthcheck:
@@ -30,7 +169,11 @@ services:
       maintainer: "Md. Afzal Hassan Ehsani"
       maintainer.linkedin: "https://www.linkedin.com/in/iemafzalhassan/"
 
+volumes:
+  mongodb_data:
+    name: easyshop-mongodb-data
+
 networks:
   easyshop-network:
     name: easyshop-network
-    driver: bridge 
+    driver: bridge

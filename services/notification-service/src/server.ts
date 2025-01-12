@@ -21,7 +21,7 @@ app.use(express.json());
 
 // Connect to MongoDB
 mongoose
-  .connect(config.mongoUri)
+  .connect(config.mongodb.uri)
   .then(() => {
     logger.info('Connected to MongoDB');
   })
@@ -47,7 +47,7 @@ app.use('/api/notifications', notificationRoutes);
 // Error handling
 app.use(errorHandler);
 
-const PORT = config.port;
+const PORT = config.server.port;
 
 server.listen(PORT, () => {
   logger.info(`Notification Service running on port ${PORT}`);

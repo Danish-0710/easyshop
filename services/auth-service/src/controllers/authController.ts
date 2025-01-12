@@ -2,27 +2,39 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { config } from '../config';
-import { BadRequestError, NotFoundError } from '../utils/errors';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { generateAuthTokens } from '../utils/auth';
+import { OAuth2Client } from 'google-auth-library';
+import { logger } from '../utils/logger';
+
+const googleClient = new OAuth2Client(
+  config.auth.google.clientId,
+  config.auth.google.clientSecret,
+  config.auth.google.redirectUri
+);
 
 export const authController = {
   async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password, name } = req.body;
 
+      // Check if user already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         throw new BadRequestError('Email already registered');
       }
 
+      // Create new user
       const user = await User.create({
         email,
         password,
         name,
       });
 
-      const token = generateAuthTokens(user);
+      // Generate auth tokens
+      const { accessToken, refreshToken } = generateAuthTokens(user);
 
+      // Send success response
       res.status(201).json({
         status: 'success',
         data: {
@@ -32,10 +44,14 @@ export const authController = {
             email: user.email,
             role: user.role,
           },
-          token,
+          tokens: {
+            accessToken,
+            refreshToken,
+          },
         },
       });
     } catch (error) {
+      logger.error('Registration error:', error);
       next(error);
     }
   },
@@ -44,18 +60,22 @@ export const authController = {
     try {
       const { email, password } = req.body;
 
-      const user = await User.findOne({ email });
+      // Find user and include password for comparison
+      const user = await User.findOne({ email }).select('+password');
       if (!user) {
         throw new NotFoundError('User not found');
       }
 
+      // Verify password
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
-        throw new BadRequestError('Invalid password');
+        throw new UnauthorizedError('Invalid password');
       }
 
-      const token = generateAuthTokens(user);
+      // Generate auth tokens
+      const { accessToken, refreshToken } = generateAuthTokens(user);
 
+      // Send success response
       res.json({
         status: 'success',
         data: {
@@ -65,30 +85,31 @@ export const authController = {
             email: user.email,
             role: user.role,
           },
-          token,
+          tokens: {
+            accessToken,
+            refreshToken,
+          },
         },
       });
     } catch (error) {
+      logger.error('Login error:', error);
       next(error);
     }
   },
 
-  async logout(req: Request, res: Response, next: NextFunction) {
-    try {
-      // Since we're using JWT, we don't need to do anything server-side
-      // The client will handle removing the token
-      res.json({
-        status: 'success',
-        message: 'Logged out successfully',
-      });
-    } catch (error) {
-      next(error);
-    }
+  async logout(req: Request, res: Response) {
+    // In a more complete implementation, you might want to invalidate the refresh token
+    res.json({
+      status: 'success',
+      message: 'Logged out successfully',
+    });
   },
 
   async getCurrentUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await User.findById(req.user.userId).select('-password');
+      const userId = req.user?.id;
+      const user = await User.findById(userId);
+
       if (!user) {
         throw new NotFoundError('User not found');
       }
@@ -160,6 +181,59 @@ export const authController = {
         status: 'success',
         message: 'Password updated successfully',
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getGoogleAuthURL(req: Request, res: Response, next: NextFunction) {
+    try {
+      const url = googleClient.generateAuthUrl({
+        access_type: 'offline',
+        scope: [
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'https://www.googleapis.com/auth/userinfo.email',
+        ],
+      });
+      res.json({ url });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async handleGoogleCallback(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { code } = req.query;
+      
+      const { tokens } = await googleClient.getToken(code as string);
+      const ticket = await googleClient.verifyIdToken({
+        idToken: tokens.id_token!,
+        audience: config.auth.google.clientId,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new Error('No payload from Google');
+      }
+
+      // Find or create user
+      let user = await User.findOne({ email: payload.email });
+      
+      if (!user) {
+        user = await User.create({
+          name: payload.name,
+          email: payload.email,
+          password: await bcrypt.hash(Math.random().toString(36), 10),
+          googleId: payload.sub,
+          avatar: payload.picture,
+        });
+      }
+
+      // Generate token
+      const { accessToken, refreshToken } = generateAuthTokens(user);
+
+      // Redirect to frontend with token
+      res.redirect(`${config.frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}`);
     } catch (error) {
       next(error);
     }

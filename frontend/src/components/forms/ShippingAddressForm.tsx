@@ -15,6 +15,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "../ui/textarea";
 import { Variants, motion } from "framer-motion";
+import { useDispatch } from "react-redux";
+import { setShippingAddress } from "@/lib/features/address/addressSlice";
+import { useToast } from "../ui/use-toast";
 
 const formSchema = z.object({
   title: z.string().min(3),
@@ -27,6 +30,9 @@ const formSchema = z.object({
 });
 
 const ShippingAddressForm = () => {
+  const dispatch = useDispatch();
+  const { toast } = useToast();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,8 +48,12 @@ const ShippingAddressForm = () => {
 
   // Define a submit handler.
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-    console.log(values);
+    dispatch(setShippingAddress(values));
+    toast({
+      title: "Success",
+      description: "Shipping address saved successfully",
+      variant: "success",
+    });
   }
 
   const itemVariants: Variants = {

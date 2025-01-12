@@ -8,23 +8,24 @@ export interface OrderItem {
   image: string;
 }
 
-export interface ShippingAddress {
-  fullName: string;
-  addressLine1: string;
-  addressLine2?: string;
+export interface Address {
+  title: string;
+  phone: string;
+  country: string;
   city: string;
   state: string;
-  postalCode: string;
-  country: string;
-  phone: string;
+  zip: string;
+  streetAddress: string;
 }
 
 export interface IOrder extends Document {
   userId: mongoose.Types.ObjectId;
   items: OrderItem[];
   total: number;
-  shippingAddress: ShippingAddress;
-  paymentStatus: 'pending' | 'paid' | 'failed';
+  billingAddress: Address;
+  shippingAddress: Address;
+  paymentMethod: 'cash on delivery' | 'card' | 'paypal';
+  paymentStatus: 'pending' | 'awaiting_payment' | 'paid' | 'failed' | 'cancelled';
   orderStatus:
     | 'pending'
     | 'processing'
@@ -33,11 +34,43 @@ export interface IOrder extends Document {
     | 'cancelled'
     | 'refunded';
   paymentIntentId?: string;
+  clientSecret?: string;
   trackingNumber?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const addressSchema = new Schema<Address>({
+  title: {
+    type: String,
+    required: true,
+  },
+  phone: {
+    type: String,
+    required: true,
+  },
+  country: {
+    type: String,
+    required: true,
+  },
+  city: {
+    type: String,
+    required: true,
+  },
+  state: {
+    type: String,
+    required: true,
+  },
+  zip: {
+    type: String,
+    required: true,
+  },
+  streetAddress: {
+    type: String,
+    required: true,
+  },
+});
 
 const orderItemSchema = new Schema<OrderItem>({
   productId: {
@@ -65,44 +98,12 @@ const orderItemSchema = new Schema<OrderItem>({
   },
 });
 
-const shippingAddressSchema = new Schema<ShippingAddress>({
-  fullName: {
-    type: String,
-    required: true,
-  },
-  addressLine1: {
-    type: String,
-    required: true,
-  },
-  addressLine2: String,
-  city: {
-    type: String,
-    required: true,
-  },
-  state: {
-    type: String,
-    required: true,
-  },
-  postalCode: {
-    type: String,
-    required: true,
-  },
-  country: {
-    type: String,
-    required: true,
-  },
-  phone: {
-    type: String,
-    required: true,
-  },
-});
-
 const orderSchema = new Schema<IOrder>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      required: true,
       ref: 'User',
+      required: true,
     },
     items: [orderItemSchema],
     total: {
@@ -110,13 +111,22 @@ const orderSchema = new Schema<IOrder>(
       required: true,
       min: 0,
     },
+    billingAddress: {
+      type: addressSchema,
+      required: true,
+    },
     shippingAddress: {
-      type: shippingAddressSchema,
+      type: addressSchema,
+      required: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['cash on delivery', 'card', 'paypal'],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed'],
+      enum: ['pending', 'awaiting_payment', 'paid', 'failed', 'cancelled'],
       default: 'pending',
     },
     orderStatus: {
@@ -131,7 +141,8 @@ const orderSchema = new Schema<IOrder>(
       ],
       default: 'pending',
     },
-    paymentIntentId: String,
+    paymentIntentId: { type: String },
+    clientSecret: { type: String },
     trackingNumber: String,
     notes: String,
   },

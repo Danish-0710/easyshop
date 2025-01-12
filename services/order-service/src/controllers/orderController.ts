@@ -2,13 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { Order } from '../models/Order';
 import { config } from '../config';
+import Stripe from 'stripe';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { createPaymentIntent, confirmPaymentIntent } from '../utils/stripe';
+
+const stripe = new Stripe(config.stripe.secretKey, {
+  apiVersion: '2023-10-16',
+});
 
 export const orderController = {
   async createOrder(req: Request, res: Response, next: NextFunction) {
     try {
-      const { shippingAddress } = req.body;
+      const { billingAddress, shippingAddress, paymentMethod } = req.body;
 
       // Get cart from cart service
       const cartResponse = await axios.get(
@@ -24,19 +29,29 @@ export const orderController = {
       }
 
       // Create order
-      const order = await Order.create({
+      const orderData = {
         userId: req.user.userId,
         items: cart.items,
         total: cart.total,
+        billingAddress,
         shippingAddress,
-        paymentStatus: 'pending',
+        paymentMethod,
+        paymentStatus: paymentMethod === 'cash on delivery' ? 'pending' : 'awaiting_payment',
         orderStatus: 'pending',
-      });
+      };
 
-      // Create payment intent
-      const paymentIntent = await createPaymentIntent(order.total);
-      order.paymentIntentId = paymentIntent.id;
-      await order.save();
+      const order = await Order.create(orderData);
+
+      // Handle payment based on method
+      if (paymentMethod === 'cash on delivery') {
+        // No payment intent needed for COD
+      } else {
+        // Create payment intent for other methods
+        const paymentIntent = await createPaymentIntent(order.total);
+        order.paymentIntentId = paymentIntent.id;
+        order.clientSecret = paymentIntent.client_secret;
+        await order.save();
+      }
 
       // Clear cart
       await axios.delete(
@@ -50,7 +65,7 @@ export const orderController = {
         status: 'success',
         data: {
           order,
-          clientSecret: paymentIntent.client_secret,
+          clientSecret: order.paymentIntentId ? order.clientSecret : null,
         },
       });
     } catch (error) {
@@ -65,7 +80,9 @@ export const orderController = {
 
       res.json({
         status: 'success',
-        data: { orders },
+        data: {
+          orders,
+        },
       });
     } catch (error) {
       next(error);
@@ -85,7 +102,9 @@ export const orderController = {
 
       res.json({
         status: 'success',
-        data: { order },
+        data: {
+          order,
+        },
       });
     } catch (error) {
       next(error);
@@ -94,8 +113,7 @@ export const orderController = {
 
   async updateOrderStatus(req: Request, res: Response, next: NextFunction) {
     try {
-      const { orderStatus } = req.body;
-
+      const { status } = req.body;
       const order = await Order.findOne({
         _id: req.params.orderId,
         userId: req.user.userId,
@@ -105,12 +123,14 @@ export const orderController = {
         throw new NotFoundError('Order not found');
       }
 
-      order.orderStatus = orderStatus;
+      order.orderStatus = status;
       await order.save();
 
       res.json({
         status: 'success',
-        data: { order },
+        data: {
+          order,
+        },
       });
     } catch (error) {
       next(error);
@@ -128,21 +148,24 @@ export const orderController = {
         throw new NotFoundError('Order not found');
       }
 
-      if (
-        order.orderStatus !== 'pending' &&
-        order.orderStatus !== 'processing'
-      ) {
-        throw new BadRequestError(
-          'Order cannot be cancelled in current status'
-        );
+      if (order.orderStatus === 'delivered') {
+        throw new BadRequestError('Cannot cancel delivered order');
+      }
+
+      // If payment was made, initiate refund
+      if (order.paymentIntentId && order.paymentStatus === 'paid') {
+        // Handle refund logic here
       }
 
       order.orderStatus = 'cancelled';
+      order.paymentStatus = 'cancelled';
       await order.save();
 
       res.json({
         status: 'success',
-        data: { order },
+        data: {
+          order,
+        },
       });
     } catch (error) {
       next(error);
@@ -151,11 +174,15 @@ export const orderController = {
 
   async handleStripeWebhook(req: Request, res: Response, next: NextFunction) {
     try {
-      const sig = req.headers['stripe-signature'] as string;
-      const event = req.body;
+      const sig = req.headers['stripe-signature'];
+      const event = await stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        config.stripe.webhookSecret
+      );
 
       switch (event.type) {
-        case 'payment_intent.succeeded': {
+        case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
           const order = await Order.findOne({
             paymentIntentId: paymentIntent.id,
@@ -163,24 +190,21 @@ export const orderController = {
 
           if (order) {
             order.paymentStatus = 'paid';
-            order.orderStatus = 'processing';
             await order.save();
           }
           break;
-        }
 
-        case 'payment_intent.payment_failed': {
-          const paymentIntent = event.data.object;
-          const order = await Order.findOne({
-            paymentIntentId: paymentIntent.id,
+        case 'payment_intent.payment_failed':
+          const failedPayment = event.data.object;
+          const failedOrder = await Order.findOne({
+            paymentIntentId: failedPayment.id,
           });
 
-          if (order) {
-            order.paymentStatus = 'failed';
-            await order.save();
+          if (failedOrder) {
+            failedOrder.paymentStatus = 'failed';
+            await failedOrder.save();
           }
           break;
-        }
       }
 
       res.json({ received: true });

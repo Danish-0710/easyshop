@@ -1,22 +1,27 @@
 import ProductGrid from "@/components/ProductGrid";
 import SelectedFilters from "@/components/filters/SelectedFilters";
 import ProductLoader from "@/components/loader/ProductLoader";
-import { Suspense } from "react";
+import { Suspense, useSearchParams } from "react";
+
+export const dynamic = 'force-dynamic';
 
 type ShopPageProps = {
-  searchParams: SearchParamsType;
   params: {
     shop: string;
     category: string;
   };
 };
 
-const ShopPage = ({ params, searchParams }: ShopPageProps) => {
+const ShopPage = ({ params }: ShopPageProps) => {
+  const [searchParams] = useSearchParams();
+  
+  const suspenseKey = `${params.shop}-${searchParams.get('q') || ''}-${searchParams.get('page') || '1'}`;
+  
   return (
     <section className="shop-page">
       <SelectedFilters />
       <Suspense
-        key={searchParams?.page + params.shop + searchParams?.q}
+        key={suspenseKey}
         fallback={<ProductLoader />}
       >
         <ProductGrid searchParams={searchParams} params={params} />
